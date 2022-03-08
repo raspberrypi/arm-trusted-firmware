@@ -8,8 +8,6 @@
 #include <inttypes.h>
 #include <stdint.h>
 
-#include <libfdt.h>
-
 #include <platform_def.h>
 #include <arch_helpers.h>
 #include <common/bl_common.h>
@@ -18,9 +16,6 @@
 #include <lib/xlat_tables/xlat_tables_defs.h>
 #include <lib/xlat_tables/xlat_tables_v2.h>
 #include <plat/common/platform.h>
-#include <common/fdt_fixup.h>
-#include <common/fdt_wrappers.h>
-#include <libfdt.h>
 
 #include <drivers/arm/gicv2.h>
 #include <drivers/arm/pl011.h>
@@ -187,6 +182,8 @@ void bl31_plat_arch_setup(void)
 	enable_mmu_el3(0);
 }
 
+#if 0
+
 /*
  * Remove the FDT /memreserve/ entry that covers the region at the very
  * beginning of memory (if that exists). This is where the secondaries
@@ -250,7 +247,6 @@ static void rpi5_prepare_dtb(void)
 		ERROR("Failed to add PSCI cpu enable methods in Device Tree\n");
 		return;
 	}
-
 	/*
 	 * Remove the original reserved region (used for the spintable), and
 	 * replace it with a region describing the whole of Trusted Firmware.
@@ -259,13 +255,11 @@ static void rpi5_prepare_dtb(void)
 	if (fdt_add_reserved_memory(dtb, "atf@0", 0, 0x80000))
 		WARN("Failed to add reserved memory nodes to DT.\n");
 
-#if 0
 	offs = fdt_node_offset_by_compatible(dtb, 0, "arm,gic-400");
 	gic_int_prop[0] = cpu_to_fdt32(1);		// PPI
 	gic_int_prop[1] = cpu_to_fdt32(9);		// PPI #9
 	gic_int_prop[2] = cpu_to_fdt32(0x0f04);		// all cores, level high
 	fdt_setprop(dtb, offs, "interrupts", gic_int_prop, 12);
-#endif
 
 	offs = fdt_path_offset(dtb, "/chosen");
 	fdt_setprop_string(dtb, offs, "stdout-path", "serial0");
@@ -278,9 +272,11 @@ static void rpi5_prepare_dtb(void)
 	INFO("Changed device tree to advertise PSCI.\n");
 }
 
+#endif
+
 void bl31_platform_setup(void)
 {
-	rpi5_prepare_dtb();
+//	rpi5_prepare_dtb();
 
 	/* Configure the interrupt controller */
 	gicv2_driver_init(&rpi5_gic_data);

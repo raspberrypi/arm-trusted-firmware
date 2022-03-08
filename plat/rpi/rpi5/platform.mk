@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: BSD-3-Clause
 #
 
-include lib/libfdt/libfdt.mk
 include lib/xlat_tables_v2/xlat_tables.mk
 
 include drivers/arm/gic/v2/gicv2.mk
@@ -27,8 +26,6 @@ BL31_SOURCES		+=	lib/cpus/aarch64/cortex_a76.S		\
 				plat/rpi/rpi5/rpi5_topology.c		\
 				plat/rpi/rpi5/rpi5_pm.c		\
 				plat/common/plat_psci_common.c		\
-				common/fdt_fixup.c			\
-				${LIBFDT_SRCS}				\
 				${GICV2_SOURCES}
 #				drivers/rpi3/gpio/rpi3_gpio.c		\
 
