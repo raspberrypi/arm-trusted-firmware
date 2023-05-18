@@ -45,6 +45,10 @@ func console_pl011_core_init
 	cbz	w2, core_init_fail
 	/* Disable uart before programming */
 	ldr	w3, [x0, #UARTCR]
+#if PL011_INHERIT_SETUP
+	and 	w4, w3, #PL011_UARTCR_UARTEN
+	cbnz	w3, core_init_done
+#endif
 	mov	w4, #PL011_UARTCR_UARTEN
 	bic	w3, w3, w4
 	str	w3, [x0, #UARTCR]
@@ -68,6 +72,7 @@ func console_pl011_core_init
 	mov	w1, #(PL011_UARTCR_RXE | PL011_UARTCR_TXE | PL011_UARTCR_UARTEN)
 	str	w1, [x0, #UARTCR]
 #endif
+core_init_done:
 	mov	w0, #1
 	ret
 core_init_fail:

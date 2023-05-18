@@ -8,6 +8,9 @@ include lib/xlat_tables_v2/xlat_tables.mk
 
 include drivers/arm/gic/v2/gicv2.mk
 
+# Inherit the BOOT UART configuration from the VPU
+PL011_INHERIT_SETUP     := 1
+
 PLAT_INCLUDES		:=	-Iplat/rpi/common/include		\
 				-Iplat/rpi/rpi5/include
 

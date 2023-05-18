@@ -1123,6 +1123,7 @@ $(eval $(call add_defines,\
         MEASURED_BOOT \
         NS_TIMER_SWITCH \
         PL011_GENERIC_UART \
+        PL011_INHERIT_SETUP \
         PLAT_${PLAT} \
         PROGRAMMABLE_RESET_ADDRESS \
         PSCI_EXTENDED_STATE_ID \

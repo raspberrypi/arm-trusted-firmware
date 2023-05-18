@@ -214,6 +214,9 @@ OVERRIDE_LIBC			:= 0
 # Build PL011 UART driver in minimal generic UART mode
 PL011_GENERIC_UART		:= 0
 
+# Inherit the setup for the previous boot-stage of UART is enabled
+PL011_INHERIT_SETUP		:= 0
+
 # By default, consider that the platform's reset address is not programmable.
 # The platform Makefile is free to override this value.
 PROGRAMMABLE_RESET_ADDRESS	:= 0
