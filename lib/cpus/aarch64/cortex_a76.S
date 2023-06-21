@@ -220,6 +220,33 @@ func errata_a76_1073348_wa
 	ret	x17
 endfunc errata_a76_1073348_wa
 
+.globl a76_mxp_en
+.globl a76_athr_set
+
+func a76_mxp_en
+	mrs	x0, CORTEX_A76_CPUECTLR_EL1
+	orr	x0, x0, #CORTEX_A76_CPUECTLR_EL1_MXP_EN
+	msr	CORTEX_A76_CPUECTLR_EL1, x0
+	isb
+	mrs	x0, CORTEX_A76_CPUECTLR_EL1
+	ret
+endfunc a76_mxp_en
+
+func a76_athr_set
+	mrs	x2, CORTEX_A76_CPUECTLR_EL1
+	and	x2, x2, #(~(CORTEX_A76_CPUECTLR_EL1_ATHR_MASK | CORTEX_A76_CPUECTLR_EL1_TP_MASK))
+	and	x0, x0, 0x3
+	lsl	x0, x0, #CORTEX_A76_CPUECTLR_EL1_TP_SHIFT
+	orr	x2, x2, x0
+	and	x1, x1, 0x3
+	lsl	x1, x1, #CORTEX_A76_CPUECTLR_EL1_ATHR_SHIFT
+	orr	x2, x2, x1
+	msr	CORTEX_A76_CPUECTLR_EL1, x2
+	isb
+	mrs	x0, CORTEX_A76_CPUECTLR_EL1
+	ret
+endfunc a76_athr_set
+
 func check_errata_1073348
 	mov	x1, #0x10
 	b	cpu_rev_var_ls

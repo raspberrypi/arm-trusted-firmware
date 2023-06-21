@@ -23,6 +23,9 @@
 #include <rpi_shared.h>
 #include <rpi5_private.h>
 
+extern uint64_t a76_mxp_en(void);
+extern uint64_t a76_athr_set(uint64_t throttle, uint64_t activation);
+
 /*
  * Fields at the beginning of armstub8.bin.
  * While building the BL31 image, we put the stub magic into the binary.
@@ -115,6 +118,9 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 				u_register_t arg2, u_register_t arg3)
 
 {
+	uint64_t cpuectlr_el1;
+	const uint64_t mxp_athr = 0x0; // Max-power throttling triggered at 70% of peak activity. This is the reset value.
+	const uint64_t mxp_tp = 0x0;  // Throttle by 60%. This is the reset value.
 	/*
 	 * LOCAL_CONTROL:
 	 * Bit 9 clear: Increment by 1 (vs. 2).
@@ -125,11 +131,18 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 	/* LOCAL_PRESCALER; divide-by (0x80000000 / register_val) == 1 */
 	mmio_write_32(RPI4_LOCAL_CONTROL_PRESCALER, 0x80000000);
 
+	(void) a76_athr_set(mxp_tp, mxp_athr);
+	cpuectlr_el1 = a76_mxp_en();
+
 	/* Early GPU firmware revisions need a little break here. */
 	ldelay(100000);
 
 	/* Initialize the console to provide early debug support. */
 	rpi5_console_init();
+
+	INFO("%s: CPUECTRLR_EL1 %08x_%08x throttle %02x activation %02x\n", __func__,
+         (uint32_t) (cpuectlr_el1 >> 32), (uint32_t) cpuectlr_el1,
+         (uint32_t) mxp_tp, (uint32_t) mxp_athr);
 
 	bl33_image_ep_info.pc = plat_get_ns_image_entrypoint();
 	bl33_image_ep_info.spsr = rpi5_get_spsr_for_bl33_entry();
