@@ -358,7 +358,7 @@ ASFLAGS_aarch32		=	$(march32-directive)
 ASFLAGS_aarch64		=	$(march64-directive)
 
 # General warnings
-WARNINGS		:=	-Wall -Wmissing-include-dirs -Wunused	\
+WARNINGS		:=	-Wmissing-include-dirs -Wunused	\
 				-Wdisabled-optimization -Wvla -Wshadow	\
 				-Wno-unused-parameter -Wredundant-decls
 
@@ -433,7 +433,7 @@ TF_LDFLAGS		+=	$(TF_LDFLAGS_$(ARCH))
 # LD = gcc (used when GCC LTO is enabled)
 else ifneq ($(findstring gcc,$(notdir $(LD))),)
 # Pass ld options with Wl or Xlinker switches
-TF_LDFLAGS		+=	-Wl,--fatal-warnings -O1
+TF_LDFLAGS		+=	-O1
 TF_LDFLAGS		+=	-Wl,--gc-sections
 ifeq ($(ENABLE_LTO),1)
 	ifeq (${ARCH},aarch64)
@@ -450,7 +450,7 @@ TF_LDFLAGS		+=	$(subst --,-Xlinker --,$(TF_LDFLAGS_$(ARCH)))
 
 # LD = gcc-ld (ld) or llvm-ld (ld.lld) or other
 else
-TF_LDFLAGS		+=	--fatal-warnings -O1
+TF_LDFLAGS		+=	-O1
 TF_LDFLAGS		+=	--gc-sections
 # ld.lld doesn't recognize the errata flags,
 # therefore don't add those in that case
