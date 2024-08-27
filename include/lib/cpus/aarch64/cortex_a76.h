@@ -21,14 +21,6 @@
 #define CORTEX_A76_CPUECTLR_EL1_WS_THR_L2	(ULL(3) << 24)
 #define CORTEX_A76_CPUECTLR_EL1_BIT_51		(ULL(1) << 51)
 
-#define CORTEX_A76_CPUECTLR_EL1_TP_MASK	(ULL(0x3) << 57)
-#define CORTEX_A76_CPUECTLR_EL1_TP_SHIFT	(57)
-
-#define CORTEX_A76_CPUECTLR_EL1_ATHR_MASK	(ULL(0x3) << 55)
-#define CORTEX_A76_CPUECTLR_EL1_ATHR_SHIFT	(55)
-
-#define CORTEX_A76_CPUECTLR_EL1_MXP_EN	(ULL(1) << 61)
-
 /*******************************************************************************
  * CPU Auxiliary Control register specific definitions.
  ******************************************************************************/
