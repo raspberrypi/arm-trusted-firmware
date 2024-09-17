@@ -9,6 +9,14 @@
 #include <assert_macros.S>
 #include <platform_def.h>
 #include <cortex_a72.h>
+#include <cortex_a76.h>
+
+#ifndef CPUECTLR
+#define CPUECTLR 0x0000000961563000
+#endif
+#ifndef CLUSTERECTLR
+#define CLUSTERECTLR 0x500
+#endif
 
 	.globl	plat_crash_console_flush
 	.globl	plat_crash_console_init
@@ -126,6 +134,14 @@ endfunc plat_secondary_cold_boot_setup
 	 * ---------------------------------------------------------------------
 	 */
 func plat_get_my_entrypoint
+	mov_imm x0, CPUECTLR
+	msr	CORTEX_A76_CPUECTLR_EL1, x0
+	isb
+
+	mov_imm x0, CLUSTERECTLR
+	msr	CORTEX_A76_CLUSTERECTLR_EL1, x0
+	isb
+
 	mov	x1, x30
 	bl	plat_is_my_cpu_primary
 	/*
