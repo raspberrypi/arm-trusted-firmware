@@ -12,7 +12,7 @@
 #include <cortex_a76.h>
 
 #ifndef CPUECTLR
-#define CPUECTLR 0x2000000961563000
+#define CPUECTLR 0x2000000960023000
 #endif
 #ifndef CLUSTERECTLR
 #define CLUSTERECTLR 0x500
