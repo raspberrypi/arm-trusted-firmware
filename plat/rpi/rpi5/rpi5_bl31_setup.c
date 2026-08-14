@@ -274,13 +274,23 @@ static void rpi5_prepare_dtb(void)
 
 #endif
 
+/*
+ * Bring the GIC up from reset values. Used on the cold boot and again after
+ * S3, which powers the GIC down while the warm boot path skips
+ * bl31_platform_setup().
+ */
+void rpi5_gic_init(void)
+{
+	gicv2_distif_init();
+	gicv2_pcpu_distif_init();
+	gicv2_cpuif_enable();
+}
+
 void bl31_platform_setup(void)
 {
 //	rpi5_prepare_dtb();
 
 	/* Configure the interrupt controller */
 	gicv2_driver_init(&rpi5_gic_data);
-	gicv2_distif_init();
-	gicv2_pcpu_distif_init();
-	gicv2_cpuif_enable();
+	rpi5_gic_init();
 }
