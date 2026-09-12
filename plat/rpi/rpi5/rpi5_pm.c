@@ -5,6 +5,7 @@
  */
 
 #include <assert.h>
+#include <stdbool.h>
 
 #include <platform_def.h>
 
@@ -16,6 +17,7 @@
 #include <plat/common/platform.h>
 
 #include <rpi_hw.h>
+#include <rpi5_private.h>
 
 #define MBOX_CHAN_SUSPEND              9
 
@@ -222,56 +224,56 @@ static void __dead2 rpi5_pwr_down_wfi(
 
 /*******************************************************************************
  * Platform handlers for system suspend.
+ *
+ * PLAT_MAX_PWR_LVL is the single cluster, so a target state with that level
+ * OFF is the whole SoC going down: SYSTEM_SUSPEND (S3). Anything shallower is
+ * a CPU_SUSPEND idle state and must leave the VC and the shared distributor
+ * alone.
  ******************************************************************************/
+static bool rpi5_is_system_suspend(const psci_power_state_t *target_state)
+{
+	return target_state->pwr_domain_state[PLAT_MAX_PWR_LVL] ==
+		PLAT_LOCAL_STATE_OFF;
+}
 
 void rpi5_pwr_domain_suspend(const psci_power_state_t *target_state)
 {
-	uint32_t msg = MBOX_CHAN_SUSPEND |
-		(*(uint32_t *)PLAT_RPI3_TM_ENTRYPOINT << 4);
+	uint32_t msg;
 
-	INFO("rpi5_pwr_domain_suspend - %x\n", msg);
+	if (!rpi5_is_system_suspend(target_state))
+		return;
+
+	/*
+	 * The VC powers the ARM cluster off as soon as it handles this
+	 * message, so nothing that runs after the mailbox write (the rest of
+	 * the PSCI sequence and rpi5_pwr_down_wfi) is guaranteed to land.
+	 * Leave the warm boot marker for plat_get_my_entrypoint and push the
+	 * caches out first.
+	 */
+	mmio_write_64(PLAT_RPI3_TM_HOLD_BASE, PLAT_RPI3_TM_HOLD_STATE_BSP_OFF);
+	dcsw_op_all(DCCISW);
+	dsb();
+	isb();
+
+	/* Ask the VC to enter S3 and resume us via the warm entrypoint */
+	msg = MBOX_CHAN_SUSPEND | (*(uint32_t *)PLAT_RPI3_TM_ENTRYPOINT << 4);
 	mmio_write_32(RPI3_MBOX_BASE + RPI3_MBOX1_WRITE_OFFSET, msg);
 }
 
 void rpi5_pwr_domain_suspend_finish(const psci_power_state_t *target_state)
 {
-	INFO("rpi5_pwr_domain_suspend_finish\n");
-#if 0
-	uint32_t lvl;
-	plat_local_state_t lvl_state;
-	int ret;
-
-	/* Nothing to be done on waking up from retention from CPU level */
-	if (RK_CORE_PWR_STATE(target_state) != PLAT_MAX_OFF_STATE)
-		return;
-
-	if (RK_SYSTEM_PWR_STATE(target_state) == PLAT_MAX_OFF_STATE) {
-		rockchip_soc_sys_pwr_dm_resume();
-		goto comm_finish;
-	}
-
-	for (lvl = MPIDR_AFFLVL1; lvl <= PLAT_MAX_PWR_LVL; lvl++) {
-		lvl_state = target_state->pwr_domain_state[lvl];
-		ret = rockchip_soc_hlvl_pwr_dm_resume(lvl, lvl_state);
-		if (ret == PSCI_E_NOT_SUPPORTED)
-			break;
-	}
-
-	rockchip_soc_cores_pwr_dm_resume();
-
-	/*
-	 * Program the gic per-cpu distributor or re-distributor interface.
-	 * For sys power domain operation, resuming of the gic needs to operate
-	 * in rockchip_soc_sys_pwr_dm_resume(), according to the sys power mode
-	 * implements.
-	 */
-	plat_rockchip_gic_cpuif_enable();
-
-comm_finish:
-	/* Perform the common cluster specific operations */
-	if (RK_CLUSTER_PWR_STATE(target_state) == PLAT_MAX_OFF_STATE) {
-		/* Enable coherency if this cluster was off */
-		plat_cci_enable();
+#ifdef RPI_HAVE_GIC
+	if (rpi5_is_system_suspend(target_state)) {
+		/*
+		 * S3 resets the GIC. Linux restores its own SPI and PPI
+		 * configuration from its CPU PM notifiers, but the interrupt
+		 * grouping and the secure enables are not reachable from the
+		 * non-secure side, so redo the cold boot set-up here.
+		 */
+		rpi5_gic_init();
+	} else {
+		gicv2_pcpu_distif_init();
+		gicv2_cpuif_enable();
 	}
 #endif
 }
