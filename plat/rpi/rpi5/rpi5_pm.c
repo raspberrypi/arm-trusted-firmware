@@ -220,6 +220,8 @@ static void __dead2 rpi5_pwr_down_wfi(
 			uint32_t msg = MBOX_CHAN_SUSPEND |
 				(*(uint32_t *)PLAT_RPI3_TM_ENTRYPOINT << 4);
 
+			rpi5_timer_save();
+			dsb();
 			mmio_write_32(RPI3_MBOX_BASE + RPI3_MBOX1_WRITE_OFFSET,
 				      msg);
 		}
@@ -259,6 +261,7 @@ void rpi5_pwr_domain_suspend_finish(const psci_power_state_t *target_state)
 		 * grouping and the secure enables are not reachable from the
 		 * non-secure side, so redo the cold boot set-up here.
 		 */
+		rpi5_timer_init();
 		rpi5_gic_init();
 	} else {
 		gicv2_pcpu_distif_init();
