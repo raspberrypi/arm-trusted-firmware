@@ -17,6 +17,7 @@
 #include <plat/common/platform.h>
 
 #include <rpi_hw.h>
+#include <rpi5_private.h>
 
 #define MBOX_CHAN_SUSPEND              9
 
@@ -251,6 +252,18 @@ void rpi5_pwr_domain_suspend(const psci_power_state_t *target_state)
 
 void rpi5_pwr_domain_suspend_finish(const psci_power_state_t *target_state)
 {
+	if (rpi5_is_system_suspend(target_state)) {
+		/*
+		 * S3 resets the GIC. Linux restores its own SPI and PPI
+		 * configuration from its CPU PM notifiers, but the interrupt
+		 * grouping and the secure enables are not reachable from the
+		 * non-secure side, so redo the cold boot set-up here.
+		 */
+		rpi5_gic_init();
+	} else {
+		gicv2_pcpu_distif_init();
+		gicv2_cpuif_enable();
+	}
 }
 
 void rpi5_get_sys_suspend_power_state(psci_power_state_t *req_state)

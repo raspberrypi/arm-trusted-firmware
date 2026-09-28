@@ -29,4 +29,6 @@ unsigned int plat_rpi5_calc_core_pos(u_register_t mpidr);
 /* BL2 utility functions */
 uint32_t rpi5_get_spsr_for_bl33_entry(void);
 
+void rpi5_gic_init(void);
+
 #endif /* RPI5_PRIVATE_H */
