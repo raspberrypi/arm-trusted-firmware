@@ -19,9 +19,7 @@
 
 #define MBOX_CHAN_SUSPEND              9
 
-#ifdef RPI_HAVE_GIC
 #include <drivers/arm/gicv2.h>
-#endif
 
 #define CPUPWRCTLR_EL1		S3_0_c15_c2_7
 #define CLUSTERPWRCTLR_EL1	S3_0_c15_c3_5
@@ -127,9 +125,7 @@ static void rpi5_cpu_standby(plat_local_state_t cpu_state)
 
 static void rpi5_pwr_domain_off(const psci_power_state_t *target_state)
 {
-#ifdef RPI_HAVE_GIC
 	gicv2_cpuif_disable();
-#endif
 }
 
 #if 0
@@ -179,10 +175,8 @@ static void rpi5_pwr_domain_on_finish(const psci_power_state_t *target_state)
 	assert(target_state->pwr_domain_state[MPIDR_AFFLVL0] ==
 					PLAT_LOCAL_STATE_OFF);
 
-#ifdef RPI_HAVE_GIC
 	gicv2_pcpu_distif_init();
 	gicv2_cpuif_enable();
-#endif
 }
 
 static void __dead2 rpi5_pwr_down_wfi(

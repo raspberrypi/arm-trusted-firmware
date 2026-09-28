@@ -94,7 +94,6 @@
 /*
  * GIC interrupt controller
  */
-#define RPI_HAVE_GIC
 #define RPI5_GIC_GICD_BASE		ULL(0x107fff9000)
 #define RPI5_GIC_GICC_BASE		ULL(0x107fffa000)
 
