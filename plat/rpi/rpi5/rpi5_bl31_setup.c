@@ -103,6 +103,41 @@ static void ldelay(register_t delay)
 	);
 }
 
+CASSERT(RPI5_ARM_TIMER64 >= PLAT_RPI3_TM_ENTRYPOINT +
+	PLAT_RPI3_TRUSTED_MAILBOX_SIZE, assert_arm_timer64_overlaps_tm);
+
+/*
+ * RPI5_ARM_TIMER64 is 0 on a cold boot. Across S3 it carries the counter from
+ * rpi5_timer_save(), possibly adjusted by the VC for the time spent asleep.
+ */
+void rpi5_timer_init(void)
+{
+	uint64_t t = mmio_read_64(RPI5_ARM_TIMER64);
+
+	/*
+	 * LOCAL_CONTROL:
+	 * Bit 9 clear: Increment by 1 (vs. 2).
+	 * Bit 8 clear: Timer source is 19.2MHz crystal (vs. APB).
+	 */
+	mmio_write_32(RPI4_LOCAL_CONTROL_BASE_ADDRESS, 0);
+
+	/* LOCAL_PRESCALER; divide-by (0x80000000 / register_val) == 1 */
+	mmio_write_32(RPI4_LOCAL_CONTROL_PRESCALER, 0x80000000);
+
+	/* The LS half is latched and applied atomically by the MS write. */
+	mmio_write_32(RPI5_LOCAL_TIMER_LS, (uint32_t)t);
+	mmio_write_32(RPI5_LOCAL_TIMER_MS, (uint32_t)(t >> 32));
+}
+
+void rpi5_timer_save(void)
+{
+	/* Reading LS latches MS, so this order gives a consistent value. */
+	uint32_t ls = mmio_read_32(RPI5_LOCAL_TIMER_LS);
+	uint32_t ms = mmio_read_32(RPI5_LOCAL_TIMER_MS);
+
+	mmio_write_64(RPI5_ARM_TIMER64, ((uint64_t)ms << 32) | ls);
+}
+
 /*******************************************************************************
  * Perform any BL31 early platform setup. Here is an opportunity to copy
  * parameters passed by the calling EL (S-EL1 in BL2 & EL3 in BL1) before
@@ -115,15 +150,7 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 				u_register_t arg2, u_register_t arg3)
 
 {
-	/*
-	 * LOCAL_CONTROL:
-	 * Bit 9 clear: Increment by 1 (vs. 2).
-	 * Bit 8 clear: Timer source is 19.2MHz crystal (vs. APB).
-	 */
-	mmio_write_32(RPI4_LOCAL_CONTROL_BASE_ADDRESS, 0);
-
-	/* LOCAL_PRESCALER; divide-by (0x80000000 / register_val) == 1 */
-	mmio_write_32(RPI4_LOCAL_CONTROL_PRESCALER, 0x80000000);
+	rpi5_timer_init();
 
 	/* Early GPU firmware revisions need a little break here. */
 	ldelay(100000);
@@ -274,13 +301,23 @@ static void rpi5_prepare_dtb(void)
 
 #endif
 
+/*
+ * Bring the GIC up from reset values. Used on the cold boot and again after
+ * S3, which powers the GIC down while the warm boot path skips
+ * bl31_platform_setup().
+ */
+void rpi5_gic_init(void)
+{
+	gicv2_distif_init();
+	gicv2_pcpu_distif_init();
+	gicv2_cpuif_enable();
+}
+
 void bl31_platform_setup(void)
 {
 //	rpi5_prepare_dtb();
 
 	/* Configure the interrupt controller */
 	gicv2_driver_init(&rpi5_gic_data);
-	gicv2_distif_init();
-	gicv2_pcpu_distif_init();
-	gicv2_cpuif_enable();
+	rpi5_gic_init();
 }
