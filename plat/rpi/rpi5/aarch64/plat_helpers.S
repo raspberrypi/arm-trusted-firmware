@@ -29,6 +29,7 @@
 	.globl	plat_rpi5_calc_core_pos
 	.globl	plat_secondary_cold_boot_setup
 	.globl	plat_rpi_get_model
+	.globl	plat_rpi5_hold_poll
 
 	/* -----------------------------------------------------
 	 *  unsigned int plat_my_core_pos(void)
@@ -95,11 +96,22 @@ func plat_wait_for_warm_boot
 	 */
 	mov	x1, PLAT_RPI3_TM_HOLD_STATE_WAIT
 	str	x1,[x0]
+	b	poll_mailbox
+endfunc plat_wait_for_warm_boot
+
+	/* As plat_wait_for_warm_boot, for a hold entry already set to WAIT */
+func plat_rpi5_hold_poll
+	bl	plat_my_core_pos
+	lsl	x0, x0, #3
+	mov_imm	x2, PLAT_RPI3_TM_HOLD_BASE
+	add	x0, x0, x2
 
 	/* Wait until we have a go */
 poll_mailbox:
 	wfe
 	ldr	x1, [x0]
+	cmp	x1, PLAT_RPI5_TM_HOLD_STATE_PWRDN
+	beq	hold_pwrdn
 	cmp	x1, PLAT_RPI3_TM_HOLD_STATE_GO
 	bne	poll_mailbox
 
@@ -107,7 +119,18 @@ poll_mailbox:
 	mov_imm	x0, PLAT_RPI3_TM_ENTRYPOINT
 	ldr	x1, [x0]
 	br	x1
-endfunc plat_wait_for_warm_boot
+
+	/* System suspend needs every core powered down */
+hold_pwrdn:
+	mov	x1, PLAT_RPI5_TM_HOLD_STATE_PWRDN_ACK
+	str	x1, [x0]
+	dsb	sy
+	mov	x1, #CORTEX_A76_CORE_PWRDN_EN_MASK
+	msr	CORTEX_A76_CPUPWRCTLR_EL1, x1
+	isb
+1:	wfi
+	b	1b
+endfunc plat_rpi5_hold_poll
 
 	/* -----------------------------------------------------
 	 * void plat_secondary_cold_boot_setup (void);

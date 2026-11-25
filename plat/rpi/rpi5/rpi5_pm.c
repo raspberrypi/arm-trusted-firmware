@@ -127,6 +127,16 @@ static void rpi5_cpu_standby(plat_local_state_t cpu_state)
 
 static void rpi5_pwr_domain_off(const psci_power_state_t *target_state)
 {
+	uintptr_t hold_base = PLAT_RPI3_TM_HOLD_BASE +
+		plat_my_core_pos() * PLAT_RPI3_TM_HOLD_ENTRY_SIZE;
+
+	/*
+	 * Arm the hold entry before PSCI reports this CPU as off, so a
+	 * CPU_ON that follows straight away can't be overwritten.
+	 */
+	mmio_write_64(hold_base, PLAT_RPI3_TM_HOLD_STATE_WAIT);
+	dsb();
+
 	gicv2_cpuif_disable();
 }
 
@@ -192,11 +202,50 @@ static bool rpi5_is_system_suspend(const psci_power_state_t *target_state)
 		PLAT_LOCAL_STATE_OFF;
 }
 
+void __dead2 plat_rpi5_hold_poll(void);
+
+/* The VC only enters S3 once every core is powered down */
+static void rpi5_pwrdn_held_cpus(void)
+{
+	unsigned int pos;
+	int timeout;
+
+	for (pos = 1; pos < PLATFORM_CORE_COUNT; pos++) {
+		uintptr_t hold = PLAT_RPI3_TM_HOLD_BASE +
+			pos * PLAT_RPI3_TM_HOLD_ENTRY_SIZE;
+
+		if (mmio_read_64(hold) != PLAT_RPI3_TM_HOLD_STATE_WAIT)
+			continue;
+		mmio_write_64(hold, PLAT_RPI5_TM_HOLD_STATE_PWRDN);
+		dsb();
+		sev();
+		for (timeout = 1000000; timeout > 0; timeout--) {
+			if (mmio_read_64(hold) ==
+			    PLAT_RPI5_TM_HOLD_STATE_PWRDN_ACK)
+				break;
+		}
+		if (timeout == 0)
+			WARN("rpi5: CPU%u did not power down\n", pos);
+	}
+}
+
 static void __dead2 rpi5_pwr_down_wfi(
 		const psci_power_state_t *target_state)
 {
 	uintptr_t hold_base = PLAT_RPI3_TM_HOLD_BASE;
 	unsigned int pos = plat_my_core_pos();
+
+	/*
+	 * Nothing powers a core back up after CORE_PWRDN_EN + wfi short of
+	 * a system reset, so a hot-unplugged secondary spins in the hold
+	 * pen instead and CPU_ON releases it from there.
+	 */
+	if (pos != 0 && !rpi5_is_system_suspend(target_state)) {
+		write_cpupwrctlr_el1(0x0);
+		isb();
+		disable_mmu_el3();
+		plat_rpi5_hold_poll();
+	}
 
 	if (pos == 0) {
 		/*
@@ -220,6 +269,7 @@ static void __dead2 rpi5_pwr_down_wfi(
 			uint32_t msg = MBOX_CHAN_SUSPEND |
 				(*(uint32_t *)PLAT_RPI3_TM_ENTRYPOINT << 4);
 
+			rpi5_pwrdn_held_cpus();
 			rpi5_timer_save();
 			dsb();
 			mmio_write_32(RPI3_MBOX_BASE + RPI3_MBOX1_WRITE_OFFSET,
